@@ -1,6 +1,4 @@
-**/__pycache__
-*.pyc
-*.conf
-.*
-__pycache__/*
-!.gitignore
+*
+!class_ip.py
+!data_base.py
+!generator.py
