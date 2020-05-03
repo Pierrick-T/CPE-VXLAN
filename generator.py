@@ -1,15 +1,13 @@
 import jinja2
 import sys
 from data_base import fabric_def, network_map
-import ipaddress as ip
+
 
 template_env = jinja2.Environment(loader=jinja2.FileSystemLoader('./templates'))
 
 # Lets define which device we are configuring
 name_of_device = sys.argv[1]
 
-# Define the net on which we are working
-snet = ip.IPv4Network(fabric_def['underlay']['snet'])
 
 # We need to create a list with all the available devices to configure
 available_spines, available_leaves = [], []
@@ -45,6 +43,5 @@ if hw_type == 'leaves':
 
 output = template.render(config)
 file_name = config['hostname'] + '.conf'
-
 with open(file_name, 'w') as f:
     f.write(output)

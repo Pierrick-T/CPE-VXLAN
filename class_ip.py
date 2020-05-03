@@ -1,5 +1,6 @@
 class ipaddress:
     def __init__(self, address, mask=None):
+        self.ip_as_str = address
         #  define the ip as a list
         if mask is not None:
             self.address = []
@@ -69,3 +70,25 @@ class ipaddress:
 
     def __copy__(self):
         return type(self)(self.get_ipstr(), str(self.mask))
+
+    def get_subnets(self, new_mask):
+        list_of_subnets = []
+
+
+def split_in_subs(ip, mask, final_mask, list_subnets):
+    if final_mask == mask:
+        return list_subnets.append(ip)
+
+    else:
+        ip_as_list = ip.split(".")
+        binary_ip = ''
+        for i in range(4):
+            binary_ip += format(int(ip_as_list[i]), '08b')
+        binary_ip = binary_ip[:mask] + '1' + binary_ip[mask + 1:]
+        ip2 = str(int(binary_ip[:8], 2)) + '.' + str(int(binary_ip[8:16], 2)) + '.' + str(
+            int(binary_ip[16:24], 2)) + '.' + str(int(binary_ip[24:], 2))
+
+        subnet_1 = [ip, mask + 1]
+        subnet_2 = [ip2, mask + 1]
+        return split_in_subs(subnet_1[0], subnet_1[1], final_mask, list_subnets), split_in_subs(subnet_2[0], subnet_2[1], final_mask, list_subnets)
+

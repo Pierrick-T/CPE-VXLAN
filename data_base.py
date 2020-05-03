@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from class_ip import ipaddress
+from class_ip import ipaddress, split_in_subs
 from copy import copy
 
 fabric_def = {
@@ -40,73 +40,61 @@ fabric_def = {
     },
 }
 
-network_map = {
-    'spines': {
-        1: {},
-        2: {},
-        3: {},
-        4: {},
-    },
-    'leaves': {
-        1: {},
-        2: {},
-        3: {},
-        4: {},
-    }
-}
 
 snet = ipaddress(fabric_def['underlay']['snet'])
 nb_spines = len(fabric_def['devices']['spines'])
+nb_leaves = len(fabric_def['devices']['leaves'])
 
-device_ip = [[] for i in range(nb_spines)]
+
+# Creating the skeleton for the network map
+network_map = {'spines': {}, 'leaves': {}}
+for i in range(nb_spines):
+    network_map['spines'].update({i+1: {}})
+for i in range(nb_leaves):
+    network_map['leaves'].update({i+1: {}})
+
+# Implementing the network map
+device_subs = []
+split_in_subs(snet.get_ipstr(), snet.mask, 26, device_subs)
+device_ip = [ipaddress(x, 31) for x in device_subs]
 
 for x in range(nb_spines):
-    if x < 2:
-        interface_leaf = 49
-    else:
-        interface_leaf = 50
-    if x % 2 == 0:
-        connected_leaf = [1, 3]
-    else:
-        connected_leaf = [2, 4]
+    if x % 2 == 0: # if even
+        even = 0
+    else :
+        even = 1
 
-    device_ip[x] = copy(snet)
-    device_ip[x].mask = 31
-    device_ip[x].address[3] += 64 * x
-    network_map['spines'][x + 1].update({
-        'Ethernet1/'+str(x+1): {
-            'ip': device_ip[x].get_ipstr(),
-            'mask': device_ip[x].get_mask(),
-            'target_name': fabric_def['devices']['leaves'][connected_leaf[0]]['name'],
-            'target_port': 'Ethernet1/' + str(interface_leaf)
-        }})  # first interface spine
-    device_ip[x].address[3] += 1
-    network_map['leaves'][connected_leaf[0]].update({
-        'Ethernet1/' + str(interface_leaf): {
-            'ip': device_ip[x].get_ipstr(),
-            'mask': device_ip[x].get_mask(),
-            'target_name': fabric_def['devices']['spines'][x + 1]['name'],
-            'target_port': 'Ethernet1/1'
-        }})  # first interface leaf
-    device_ip[x].address[3] -= 1
+    for y in range(int(nb_leaves/2)):
+        network_map['spines'][x + 1].update({  # interface of the spine
+            'Ethernet1/' + str(y + 1): {
+                'ip': device_ip[x].get_ipstr(),
+                'mask': device_ip[x].get_mask(),
+                'target_name': fabric_def['devices']['leaves'][2 * y + even + 1]['name'],
+                'target_port': 'Ethernet1/' + str(x + 49)
+            }})
 
-    device_ip[x].address[3] += 2
-    network_map['spines'][x + 1].update({
-        'Ethernet1/'+str(x+2): {
-            'ip': device_ip[x].get_ipstr(),
-            'mask': device_ip[x].get_mask(),
-            'target_name': fabric_def['devices']['leaves'][connected_leaf[1]]['name'],
-            'target_port': 'Ethernet1/' + str(interface_leaf)
-        }})  # second interface spine
-    device_ip[x].address[3] += 1
+        device_ip[x].address[3] += 1
+        network_map['leaves'][2 * y + even + 1].update({  # interface of the leaf
+            'Ethernet1/' + str(x + 49): {
+                'ip': device_ip[x].get_ipstr(),
+                'mask': device_ip[x].get_mask(),
+                'target_name': fabric_def['devices']['spines'][x + 1]['name'],
+                'target_port': 'Ethernet1/' + str(y + 1)
+            }})  # first interface leaf
+        device_ip[x].address[3] += 1
 
-    network_map['leaves'][connected_leaf[1]].update({
-        'Ethernet1/' + str(interface_leaf): {
-            'ip': device_ip[x].get_ipstr(),
-            'mask': device_ip[x].get_mask(),
-            'target_name': fabric_def['devices']['spines'][x + 1]['name'],
-            'target_port': 'Ethernet1/2'
-        }})  # second interface leaf
+    counter = 0
+    while counter + nb_leaves/2 < 26:  # Remaining interfaces that are not yet connected
+        network_map['spines'][x + 1].update({
+            'Ethernet1/' + str(counter + 1 + int(nb_leaves/2)): {
+                'ip': device_ip[x].get_ipstr(),
+                'mask': device_ip[x].get_mask(),
+                'target_name': 'no leaf',
+                'target_port': 'no port'
+            }})  # unused interface
+        device_ip[x].address[3] += 2
+        counter += 1
+
 
 # from PRD import vrf_def as PRD
 # vrf de PRODUCTION
@@ -116,5 +104,5 @@ for x in range(nb_spines):
 #  fabric_def['overlay']['vrf']['RQT'] = RQT
 
 
-if __name__ == '__main__':
+if __name__ == '__main__': # debug purpose
     pass
