@@ -5,9 +5,13 @@ from data_base import fabric_def, network_map
 
 template_env = jinja2.Environment(loader=jinja2.FileSystemLoader('./templates'))
 
+#Check if there is an argument as a name
 # Lets define which device we are configuring
-name_of_device = sys.argv[1]
-
+try :
+    name_of_device = sys.argv[1]
+except : 
+    print("Please enter the name of the device you wish to configure")
+    sys.exit()
 
 # We need to create a list with all the available devices to configure
 available_spines, available_leaves = [], []
@@ -25,6 +29,8 @@ elif name_of_device in available_leaves:
     hw_number = available_leaves.index(name_of_device)
 else:
     print("device name unknown")
+    print("list of devices available : ", available_leaves, available_spines)
+    sys.exit()
 
 config = {}
 
@@ -45,3 +51,5 @@ output = template.render(config)
 file_name = config['hostname'] + '.conf'
 with open(file_name, 'w') as f:
     f.write(output)
+
+print("The file ", file_name, "has been successfuly created")

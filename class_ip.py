@@ -71,8 +71,6 @@ class ipaddress:
     def __copy__(self):
         return type(self)(self.get_ipstr(), str(self.mask))
 
-    def get_subnets(self, new_mask):
-        list_of_subnets = []
 
 
 def split_in_subs(ip, mask, final_mask, list_subnets):
