@@ -2,6 +2,7 @@
 from class_ip import ipaddress, split_in_subs
 from copy import copy
 
+
 fabric_def = {
     'underlay': {'snet': '10.1.200.0/23', 'as': '65000'},
     # numéro d'AS à utiliser pour les leafs et les spines (Route reflector)
@@ -39,7 +40,6 @@ fabric_def = {
         'vrf': {},
     },
 }
-
 
 snet = ipaddress(fabric_def['underlay']['snet'])
 nb_spines = len(fabric_def['devices']['spines'])
