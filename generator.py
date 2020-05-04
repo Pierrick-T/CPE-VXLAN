@@ -35,12 +35,12 @@ else:
 config = {}
 
 if hw_type == 'spines':
-    template = template_env.get_template('spine.conf')
+    template = template_env.get_template('spine.jinja2')
     config["hostname"] = fabric_def['devices'][hw_type][hw_number+1]['name']
     config["setup"] = network_map['spines'][hw_number+1]
 
 if hw_type == 'leaves':
-    template = template_env.get_template('leaf.conf')
+    template = template_env.get_template('leaf.jinja2')
     config["hostname"] = fabric_def['devices'][hw_type][hw_number+1]['name']
 
     config["setup"] = network_map['leaves'][hw_number+1]
@@ -49,7 +49,7 @@ if hw_type == 'leaves':
 
 output = template.render(config)
 file_name = config['hostname'] + '.conf'
-with open(file_name, 'w') as f:
+with open("config/"+file_name, 'w') as f:
     f.write(output)
 
 print("The file ", file_name, "has been successfuly created")

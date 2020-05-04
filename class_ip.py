@@ -71,7 +71,10 @@ class ipaddress:
     def __copy__(self):
         return type(self)(self.get_ipstr(), str(self.mask))
 
-
+    def netsplit(self,new_mask):
+        snet_list = []
+        split_in_subs(self.get_ipstr(), self.mask, new_mask, snet_list)
+        return([ipaddress(x,new_mask) for x in snet_list])
 
 def split_in_subs(ip, mask, final_mask, list_subnets):
     if final_mask == mask:

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from class_ip import ipaddress, split_in_subs
 from copy import copy
+import pprint
 
 
 fabric_def = {
@@ -54,32 +55,28 @@ for i in range(nb_leaves):
     network_map['leaves'].update({i+1: {}})
 
 # Implementing the network map
-device_subs = []
-split_in_subs(snet.get_ipstr(), snet.mask, 26, device_subs)
-device_ip = [ipaddress(x, 31) for x in device_subs]
+snets_24 = snet.netsplit(24)
+device_ip = snets_24[0].netsplit(26)
 
 for x in range(nb_spines):
-    if x % 2 == 0: # if even
-        even = 0
-    else :
-        even = 1
-
+# Creating the connections between the leaves and the spines
     for y in range(int(nb_leaves/2)):
         network_map['spines'][x + 1].update({  # interface of the spine
             'Ethernet1/' + str(y + 1): {
                 'ip': device_ip[x].get_ipstr(),
-                'mask': device_ip[x].get_mask(),
-                'target_name': fabric_def['devices']['leaves'][2 * y + even + 1]['name'],
+                'mask': 31,
+                'target_name': fabric_def['devices']['leaves'][2 * y + (x%2) + 1]['name'],
                 'target_port': 'Ethernet1/' + str(x + 49)
             }})
 
         device_ip[x].address[3] += 1
-        network_map['leaves'][2 * y + even + 1].update({  # interface of the leaf
-            'Ethernet1/' + str(x + 49): {
+        network_map['leaves'][2 * y + (x%2) + 1].update({  # interface of the leaf
+            'Ethernet1/' + str((x>1) + 49): {
                 'ip': device_ip[x].get_ipstr(),
-                'mask': device_ip[x].get_mask(),
+                'mask': 31,
                 'target_name': fabric_def['devices']['spines'][x + 1]['name'],
-                'target_port': 'Ethernet1/' + str(y + 1)
+                'target_port': 'Ethernet1/' + str(y + 1),
+                'x':x
             }})  # first interface leaf
         device_ip[x].address[3] += 1
 
@@ -95,6 +92,45 @@ for x in range(nb_spines):
         device_ip[x].address[3] += 2
         counter += 1
 
+# Creating the loopback on the leaves 
+
+# Preparing the subnets to use
+snets_24 = snet.netsplit(24)
+snets_29 = snets_24[1].netsplit(29)
+
+for x in range(int(nb_leaves/2)):
+    snet_31 = snets_29[x].netsplit(31)
+    snet_32 = snets_29[x].netsplit(32)
+
+    for y in range(2):  # setting up VLAN2
+        network_map['leaves'][2*x+1+y].update({
+            'Vlan2': {
+                'ip': snet_31[0].get_ipstr(),
+                'mask': '32',
+                'target_name' : "leaf " + str(2*x+1+y) + ' to ' + 'leaf ' + str(2*x+1+(y+1)%2),
+                'target_port': 'vlan2'
+            }
+        })
+        snet_31[1].address[3] += 1
+        
+        network_map['leaves'][2*x+1+y].update({
+            'loopback0': {
+                'ip': snet_32[5+y].get_ipstr(),
+                'mask': '32',
+                'description' : "routing interface",
+            }
+        })
+
+        network_map['leaves'][2*x+1+y].update({
+            'loopback1': {
+                'ip': snet_32[3+y].get_ipstr(),
+                'mask': '32',
+                'ip2': snet_32[2].get_ipstr(),
+                'mask2': '32',
+                'description' : "VXLAN interface"
+            }
+        })
+
 
 # from PRD import vrf_def as PRD
 # vrf de PRODUCTION
@@ -105,4 +141,5 @@ for x in range(nb_spines):
 
 
 if __name__ == '__main__': # debug purpose
-    pass
+    pprint.pprint(network_map['leaves'][1], width=2)
+
