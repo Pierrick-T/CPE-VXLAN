@@ -1,0 +1,47 @@
+conf t
+!
+hostname {{ hostname }}
+!
+no ip domain-lookup
+!
+{%- for interface in setup.items() %}   {# Debut de la boucle sur les interfaces#}
+{% if interface[0] == 'Vlan2'%}
+vlan 2
+name vl2_L2L-UNDERLAY-OSPF
+!	
+interface {{interface[0]}}
+description {{interface[1].target_name}} underlay ospf peering
+no shutdown
+mtu 9216
+no ip redirects
+ip address {{interface[1].ip}}/{{interface[1].mask}}
+no ipv6 redirects
+
+{% elif interface[0] == 'loopback0'%}
+interface {{interface[0]}}
+description Routing interface
+ip address {{interface[1].ip}}/{{interface[1].mask}}
+
+{% elif interface[0] == 'loopback1' %}
+interface {{interface[0]}}
+description VXLAN interface
+ip address {{interface[1].ip}}/{{interface[1].mask}}
+ip address {{interface[1].ip2}}/{{interface[1].mask2}} secondary
+
+{% else %}
+{{interface[0]}}
+description « vers spine {{interface[1].target_name}} port {{interface[1].target_port}} »
+no switchport
+ip address {{interface[1].ip}} {{interface[1].mask}}
+no shut
+!
+{% endif %}
+{%- endfor %}
+
+{%- for interface in unused %}
+Ethernet1/{{interface}}
+Description NotUSED
+switchport
+shutdown
+!
+{%- endfor %}
