@@ -3,14 +3,58 @@ conf t
 hostname {{ hostname }}
 !
 no ip domain-lookup
+
+key chain kch_OSPF
+key 1
+key-string 0 un_password_cisco
+
+feature ospf   
+!
+router ospf UNDERLAY			
+router-id {{id}}			
+max-metric router-lsa include-stub on-startup 600
+log-adjacency-changes
+area 0.0.0.0 authentication message-digest
+auto-cost reference-bandwidth 400 Gbps
+!
 !
 {%- for interface in setup.items() %}   {# Debut de la boucle sur les interfaces  #}
 {{interface[0]}}
+{% if interface[0] == 'port_channel1' %}
+description {{interface[1].target_name}}
+logging event port link-status
+mtu 9216
+ip address {{interface[1].ip}}/{{interface[1].mask}}
+ip ospf authentication message-digest
+ip ospf authentication key-chain kch_OSPF
+ip ospf network point-to-point
+ip router ospf UNDERLAY area 0.0.0.0
+!
+!
+{% elif interface[0] == 'loopback0' %}
+description OSPF/BGP interface
+ip address {{interface[1].ip}}/{{interface[1].mask}}
+ip ospf network point-to-point
+ip router ospf UNDERLAY area 0.0.0.0
+!
+!
+{% elif interface[0] == 'loopback1' %}
+description PIM interface
+ip address {{interface[1].ip}}/{{interface[1].mask}}
+ip ospf network point-to-point
+ip router ospf UNDERLAY area 0.0.0.0 
+!
+!
+{% else %}
 description « vers leaf {{interface[1].target_name}} port {{interface[1].target_port}} »
 no switchport
 ip address {{interface[1].ip}} {{interface[1].mask}}
 no shut
+ip ospf authentication message-digest
+ip ospf authentication key-chain kch_OSPF
+ip ospf network point-to-point
+ip router ospf UNDERLAY area 0.0.0.0
 !
+!
+{% endif %}
 {%- endfor %}
-
-

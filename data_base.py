@@ -56,49 +56,80 @@ for i in range(nb_leaves):
 
 # Implementing the network map
 snets_24 = snet.netsplit(24)
-device_ip = snets_24[0].netsplit(26)
+snets_26 = snets_24[0].netsplit(26)
 
 for x in range(nb_spines):
 # Creating the connections between the leaves and the spines
+    snet_26 = snets_26[x]
+    snets_31 = snet_26.netsplit(31)
+    
     for y in range(int(nb_leaves/2)):
         network_map['spines'][x + 1].update({  # interface of the spine
             'Ethernet1/' + str(y + 1): {
-                'ip': device_ip[x].get_ipstr(),
-                'mask': 31,
+                'ip': snets_31[y].get_ipstr(),
+                'mask': snets_31[y].mask,
                 'target_name': fabric_def['devices']['leaves'][2 * y + (x%2) + 1]['name'],
                 'target_port': 'Ethernet1/' + str(x + 49)
             }})
 
-        device_ip[x].address[3] += 1
+        snets_31[y].address[3] += 1
         network_map['leaves'][2 * y + (x%2) + 1].update({  # interface of the leaf
             'Ethernet1/' + str((x>1) + 49): {
-                'ip': device_ip[x].get_ipstr(),
-                'mask': 31,
+                'ip': snets_31[y].get_ipstr(),
+                'mask': snets_31[y].mask,
                 'target_name': fabric_def['devices']['spines'][x + 1]['name'],
                 'target_port': 'Ethernet1/' + str(y + 1),
                 'x':x
-            }})  # first interface leaf
-        device_ip[x].address[3] += 1
+            }})  
+        snets_31[y].address[3] -= 1 # reset it to the first address of the subnet
 
-    counter = 0
-    while counter + nb_leaves/2 < 26:  # Remaining interfaces that are not yet connected
+    counter = int(nb_leaves/2)
+    while counter  < 26:  # Remaining interfaces that are not yet connected
         network_map['spines'][x + 1].update({
             'Ethernet1/' + str(counter + 1 + int(nb_leaves/2)): {
-                'ip': device_ip[x].get_ipstr(),
-                'mask': device_ip[x].get_mask(),
+                'ip': snets_31[counter].get_ipstr(),
+                'mask': snets_31[counter].get_mask(),
                 'target_name': 'no leaf',
                 'target_port': 'no port'
             }})  # unused interface
-        device_ip[x].address[3] += 2
         counter += 1
+    
+    
+    snets_31.pop() # the last /31 is used for the port channel 
+    last_snets_32 = snets_31[-1].netsplit(32)
+    
+    network_map['spines'][x + 1].update({
+            'loopback0': {
+                'ip': last_snets_32[-1].get_ipstr(),
+                'mask': last_snets_32[-1].mask,
+                'description': 'Router-ID',
+            }})  # define the router id 
+    
+    network_map['spines'][x + 1].update({
+        'loopback1': {
+            'ip': snets_24[0].netsplit(32)[-1].get_ipstr(),
+            'mask': snets_24[0].netsplit(32)[-1].mask,
+            'description': 'Router-ID',
+        }})  # common loopback on all the routers
+for x in range(int(nb_spines/2)): #connection between spines
+    snets_31 = snets_26[2*x].netsplit(31)
+    for y in range(2):
+        #print("pour le spine ",(2*x+1+y), "l'ip est ", snets_31[-1].get_ipstr() )
+        network_map['spines'][2*x + 1 + y].update({
+            'port_channel1': {
+                'ip': snets_31[-1].get_ipstr(),
+                'mask': snets_31[-1].mask,
+                'target_name': fabric_def['devices']['spines'][x+1+(x+1)%2]['name'],
+                'target_port': 'port_channel1'
+            }})  # connexion between spines
+        snets_31[-1].address[3] += 1
+
 
 # Creating the loopback on the leaves 
-
 # Preparing the subnets to use
-snets_24 = snet.netsplit(24)
 snets_29 = snets_24[1].netsplit(29)
 
-for x in range(int(nb_leaves/2)):
+for x in range(int(nb_leaves/2)): # configuring the loopbacks for the leaves 
     snet_31 = snets_29[x].netsplit(31)
     snet_32 = snets_29[x].netsplit(32)
 
@@ -141,5 +172,5 @@ for x in range(int(nb_leaves/2)):
 
 
 if __name__ == '__main__': # debug purpose
-    pprint.pprint(network_map['leaves'][1], width=2)
+    pprint.pprint(network_map['spines'][2], width=2)
 
